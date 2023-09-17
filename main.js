@@ -16,36 +16,39 @@ const init = async () => {
 };
 
 let createOffer = async () => {
-	peerConnection = new RTCPeerConnection(servers);
+	peerConnection = new RTCPeerConnection();
+
+	peerConnection.ontrack = (event) => {
+		console.log(event.streams[0])
+	};
 
 	remoteStream = new MediaStream();
 	document.getElementById("user-2").srcObject = remoteStream;
 
 	localStream.getTracks().forEach((track) => {
-		console.log(track);
-
 		peerConnection.addTrack(track, localStream);
 	});
 
-	peerConnection.ontrack = (event) => {
-		event.streams[0].getTracks().forEach((track) => {
-			remoteStream.addTrack(track);
-		});
-	};
+	/**
+	 * ICE candidates are a crucial part of the WebRTC process, 
+	 * but they are not included in the SDP offer. 
+	 * Instead, ICE candidates are gathered separately 
+	 * using the RTCPeerConnection's ICE agent. The process of gathering ICE candidates happens 
+	 * asynchronously after you create the offer, 
+	 * and you can listen for these candidates using the icecandidate event.
+	 */
+
+	// offer is the SDP offer from the sender peer
+	const offer = await peerConnection.createOffer();
+	await peerConnection.setLocalDescription(offer);
+
+	console.log('Local Description:', peerConnection.localDescription);
 
 	peerConnection.onicecandidate = async (event) => {
-		if (event.candidate) {
-			client.sendMessageToPeer(
-				{
-					text: JSON.stringify({
-						type: "candidate",
-						candidate: event.candidate,
-					}),
-				},
-				MemberId
-			);
+		if(event.candidate) {
+			console.log("New ICE Candidate", event.candidate)
 		}
-	};
+	}
 };
 
 init();
